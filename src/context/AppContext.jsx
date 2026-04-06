@@ -1,235 +1,273 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 
-const STORAGE_KEY = 'souardjj_worktracker_v1';
-
+// ── Default settings (used as fallback before DB loads) ──────────
 const defaultSettings = {
-  freelancerName: 'Rahul Sharma',
+  freelancerName:      'Rahul Sharma',
   monthlyRemuneration: 25000,
-  workingDaysBasis: 31,
-  ownerNames: ['Ronnie', 'Brother'],
-  projectName: 'Souard JJ',
-};
+  workingDaysBasis:    31,
+  ownerNames:          ['Ronnie', 'Brother'],
+  projectName:         'Souard JJ',
+}
 
-const sampleEntries = [
-  {
-    id: 'e001', date: '2026-02-03', loggedBy: 'Ronnie', workType: 'Photography',
-    description: 'Brand identity shoot — product lineup & hero shots for campaign',
-    status: 'Confirmed', confirmedBy: 'Ronnie', confirmedAt: '2026-02-03T18:00:00.000Z',
-    createdAt: '2026-02-03T10:00:00.000Z',
-  },
-  {
-    id: 'e002', date: '2026-02-08', loggedBy: 'Freelancer', workType: 'Videography',
-    description: 'Promo video shoot — 30s & 60s cuts for Instagram Reels',
-    status: 'Confirmed', confirmedBy: 'Ronnie', confirmedAt: '2026-02-09T10:00:00.000Z',
-    createdAt: '2026-02-08T09:00:00.000Z',
-  },
-  {
-    id: 'e003', date: '2026-02-12', loggedBy: 'Brother', workType: 'Both',
-    description: 'Full campaign day — photos + video for summer launch',
-    status: 'Confirmed', confirmedBy: 'Brother', confirmedAt: '2026-02-12T20:00:00.000Z',
-    createdAt: '2026-02-12T08:00:00.000Z',
-  },
-  {
-    id: 'e004', date: '2026-02-19', loggedBy: 'Freelancer', workType: 'Photography',
-    description: 'Product detail shots — flat lays, close-ups & texture shots',
-    status: 'Confirmed', confirmedBy: 'Brother', confirmedAt: '2026-02-20T09:30:00.000Z',
-    createdAt: '2026-02-19T11:00:00.000Z',
-  },
-  {
-    id: 'e005', date: '2026-02-24', loggedBy: 'Freelancer', workType: 'Editing',
-    description: 'Post-production: colour grading & editing for all Feb shoots',
-    status: 'Confirmed', confirmedBy: 'Ronnie', confirmedAt: '2026-02-25T11:00:00.000Z',
-    createdAt: '2026-02-24T13:00:00.000Z',
-  },
-  {
-    id: 'e006', date: '2026-03-03', loggedBy: 'Ronnie', workType: 'Photography',
-    description: 'Event coverage — brand activation at Bandra venue',
-    status: 'Confirmed', confirmedBy: 'Ronnie', confirmedAt: '2026-03-04T08:00:00.000Z',
-    createdAt: '2026-03-03T17:00:00.000Z',
-  },
-  {
-    id: 'e007', date: '2026-03-10', loggedBy: 'Freelancer', workType: 'Videography',
-    description: 'Social media content day — reels and stories batch (6 concepts)',
-    status: 'Confirmed', confirmedBy: 'Ronnie', confirmedAt: '2026-03-11T12:00:00.000Z',
-    createdAt: '2026-03-10T09:00:00.000Z',
-  },
-  {
-    id: 'e008', date: '2026-03-15', loggedBy: 'Brother', workType: 'Both',
-    description: 'Campaign Day 2 — outdoor & lifestyle editorial shoot',
-    status: 'Confirmed', confirmedBy: 'Brother', confirmedAt: '2026-03-16T10:00:00.000Z',
-    createdAt: '2026-03-15T08:00:00.000Z',
-  },
-  {
-    id: 'e009', date: '2026-03-20', loggedBy: 'Freelancer', workType: 'Photography',
-    description: 'Studio shoot — new product line preview for April drop',
-    status: 'Pending Confirmation', confirmedBy: null, confirmedAt: null,
-    createdAt: '2026-03-20T16:00:00.000Z',
-  },
-  {
-    id: 'e010', date: '2026-03-25', loggedBy: 'Freelancer', workType: 'Editing',
-    description: 'Video editing — full post-production for March batch',
-    status: 'Pending Confirmation', confirmedBy: null, confirmedAt: null,
-    createdAt: '2026-03-25T14:00:00.000Z',
-  },
-  {
-    id: 'e011', date: '2026-03-28', loggedBy: 'Freelancer', workType: 'Travel Day',
-    description: 'Location scouting — drove to 3 outdoor spots for April campaign',
-    status: 'Cancelled', confirmedBy: null, confirmedAt: null,
-    createdAt: '2026-03-28T18:00:00.000Z',
-  },
-  {
-    id: 'e012', date: '2026-04-01', loggedBy: 'Ronnie', workType: 'Photography',
-    description: 'April campaign kickoff — collection reveal shoot',
-    status: 'Confirmed', confirmedBy: 'Ronnie', confirmedAt: '2026-04-01T21:00:00.000Z',
-    createdAt: '2026-04-01T10:00:00.000Z',
-  },
-  {
-    id: 'e013', date: '2026-04-03', loggedBy: 'Freelancer', workType: 'Videography',
-    description: 'Reel shoot — 3 creative concepts for April social calendar',
-    status: 'Pending Confirmation', confirmedBy: null, confirmedAt: null,
-    createdAt: '2026-04-03T18:00:00.000Z',
-  },
-  {
-    id: 'e014', date: '2026-04-05', loggedBy: 'Brother', workType: 'Both',
-    description: 'BTS content day — behind-the-scenes for campaign launch week',
-    status: 'Pending Confirmation', confirmedBy: null, confirmedAt: null,
-    createdAt: '2026-04-05T20:00:00.000Z',
-  },
-];
+// ── Row → app-format transforms ──────────────────────────────────
+const toEntry = (r) => ({
+  id:          r.id,
+  date:        r.date,
+  loggedBy:    r.logged_by,
+  workType:    r.work_type,
+  description: r.description ?? '',
+  status:      r.status,
+  confirmedBy: r.confirmed_by  ?? null,
+  confirmedAt: r.confirmed_at  ?? null,
+  createdAt:   r.created_at,
+})
 
-const samplePayments = {
-  '2026-02': { amountPaid: 3000, paymentDate: '2026-03-05', notes: 'First instalment — rest pending' },
-  '2026-03': { amountPaid: 2000, paymentDate: '2026-04-02', notes: 'Partial payment via UPI' },
-};
+const toSettings = (r) => r ? {
+  freelancerName:      r.freelancer_name,
+  monthlyRemuneration: Number(r.monthly_remuneration),
+  workingDaysBasis:    Number(r.working_days_basis),
+  ownerNames:          r.owner_names ?? ['Ronnie', 'Brother'],
+  projectName:         r.project_name,
+} : defaultSettings
 
-const getInitialData = () => ({
-  settings: defaultSettings,
-  entries: sampleEntries,
-  payments: samplePayments,
-});
+const toPaymentsMap = (rows) => {
+  const map = {}
+  ;(rows ?? []).forEach(r => {
+    map[r.month_key] = {
+      amountPaid:  Number(r.amount_paid) || 0,
+      paymentDate: r.payment_date ?? '',
+      notes:       r.notes ?? '',
+    }
+  })
+  return map
+}
 
-const AppContext = createContext(null);
+// ── Context ───────────────────────────────────────────────────────
+const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [state, setState] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return getInitialData();
-  });
+  const [entries,  setEntries]  = useState([])
+  const [payments, setPayments] = useState({})
+  const [settings, setSettings] = useState(defaultSettings)
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
 
-  useEffect(() => {
+  // ── Fetch all data from Supabase ────────────────────────────────
+  const fetchAll = useCallback(async () => {
+    setError(null)
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const [
+        { data: eData, error: eErr },
+        { data: pData, error: pErr },
+        { data: sData, error: sErr },
+      ] = await Promise.all([
+        supabase.from('entries').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
+        supabase.from('payments').select('*'),
+        supabase.from('settings').select('*').eq('id', 1).maybeSingle(),
+      ])
+      if (eErr) throw eErr
+      if (pErr) throw pErr
+      if (sErr) throw sErr
+      setEntries((eData ?? []).map(toEntry))
+      setPayments(toPaymentsMap(pData))
+      setSettings(toSettings(sData))
     } catch (err) {
-      console.warn('Could not save to localStorage:', err);
+      setError(err?.message ?? 'Failed to load data from Supabase.')
+    } finally {
+      setLoading(false)
     }
-  }, [state]);
+  }, [])
 
-  const addEntry = useCallback((entry) => {
-    setState(s => ({
-      ...s,
-      entries: [
-        { ...entry, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
-        ...s.entries,
-      ],
-    }));
-  }, []);
+  // ── Mount: initial fetch + real-time subscriptions ──────────────
+  useEffect(() => {
+    fetchAll()
 
-  const updateEntry = useCallback((id, updates) => {
-    setState(s => ({
-      ...s,
-      entries: s.entries.map(e => e.id === id ? { ...e, ...updates } : e),
-    }));
-  }, []);
+    const channel = supabase
+      .channel('db-changes')
+      // entries: live updates so all 3 users see each other's changes instantly
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries' },
+        ({ new: row }) => setEntries(prev => [toEntry(row), ...prev]))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'entries' },
+        ({ new: row }) => setEntries(prev => prev.map(e => e.id === row.id ? toEntry(row) : e)))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' },
+        ({ old: row }) => setEntries(prev => prev.filter(e => e.id !== row.id)))
+      // payments + settings: just refetch on any change (simpler)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments'  }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings'  }, fetchAll)
+      .subscribe()
 
-  const deleteEntry = useCallback((id) => {
-    setState(s => ({ ...s, entries: s.entries.filter(e => e.id !== id) }));
-  }, []);
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchAll])
 
-  const confirmEntry = useCallback((id, confirmedBy) => {
-    setState(s => ({
-      ...s,
-      entries: s.entries.map(e =>
-        e.id === id
-          ? { ...e, status: 'Confirmed', confirmedBy, confirmedAt: new Date().toISOString() }
-          : e
-      ),
-    }));
-  }, []);
+  // ── Mutations ───────────────────────────────────────────────────
 
-  const rejectEntry = useCallback((id) => {
-    setState(s => ({
-      ...s,
-      entries: s.entries.map(e =>
-        e.id === id
-          ? { ...e, status: 'Cancelled', confirmedBy: null, confirmedAt: null }
-          : e
-      ),
-    }));
-  }, []);
+  const addEntry = useCallback(async (entry) => {
+    const { error } = await supabase.from('entries').insert({
+      date:        entry.date,
+      logged_by:   entry.loggedBy,
+      work_type:   entry.workType,
+      description: entry.description,
+      status:      entry.status,
+    })
+    if (error) throw error
+    // real-time INSERT event will add it to state automatically
+  }, [])
 
-  const updatePayment = useCallback((monthKey, paymentData) => {
-    setState(s => ({
-      ...s,
-      payments: { ...s.payments, [monthKey]: paymentData },
-    }));
-  }, []);
+  const updateEntry = useCallback(async (id, updates) => {
+    // Optimistic update
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
+    const { error } = await supabase.from('entries').update({
+      date:        updates.date,
+      logged_by:   updates.loggedBy,
+      work_type:   updates.workType,
+      description: updates.description,
+      status:      updates.status,
+      confirmed_by:  updates.confirmedBy  ?? null,
+      confirmed_at:  updates.confirmedAt  ?? null,
+    }).eq('id', id)
+    if (error) { fetchAll(); throw error }
+  }, [fetchAll])
 
-  const updateSettings = useCallback((newSettings) => {
-    setState(s => ({ ...s, settings: { ...s.settings, ...newSettings } }));
-  }, []);
+  const deleteEntry = useCallback(async (id) => {
+    // Optimistic update
+    setEntries(prev => prev.filter(e => e.id !== id))
+    const { error } = await supabase.from('entries').delete().eq('id', id)
+    if (error) { fetchAll(); throw error }
+  }, [fetchAll])
 
+  const confirmEntry = useCallback(async (id, confirmedBy) => {
+    const now = new Date().toISOString()
+    // Optimistic update
+    setEntries(prev => prev.map(e =>
+      e.id === id ? { ...e, status: 'Confirmed', confirmedBy, confirmedAt: now } : e
+    ))
+    const { error } = await supabase.from('entries').update({
+      status:       'Confirmed',
+      confirmed_by: confirmedBy,
+      confirmed_at: now,
+    }).eq('id', id)
+    if (error) { fetchAll(); throw error }
+  }, [fetchAll])
+
+  const rejectEntry = useCallback(async (id) => {
+    // Optimistic update
+    setEntries(prev => prev.map(e =>
+      e.id === id ? { ...e, status: 'Cancelled', confirmedBy: null, confirmedAt: null } : e
+    ))
+    const { error } = await supabase.from('entries').update({
+      status:       'Cancelled',
+      confirmed_by: null,
+      confirmed_at: null,
+    }).eq('id', id)
+    if (error) { fetchAll(); throw error }
+  }, [fetchAll])
+
+  const updatePayment = useCallback(async (monthKey, paymentData) => {
+    // Optimistic update
+    setPayments(prev => ({ ...prev, [monthKey]: paymentData }))
+    const { error } = await supabase.from('payments').upsert({
+      month_key:    monthKey,
+      amount_paid:  Number(paymentData.amountPaid) || 0,
+      payment_date: paymentData.paymentDate || null,
+      notes:        paymentData.notes || '',
+      updated_at:   new Date().toISOString(),
+    }, { onConflict: 'month_key' })
+    if (error) { fetchAll(); throw error }
+  }, [fetchAll])
+
+  const updateSettings = useCallback(async (newSettings) => {
+    // Optimistic update
+    setSettings(s => ({ ...s, ...newSettings }))
+    const { error } = await supabase.from('settings').upsert({
+      id:                    1,
+      freelancer_name:       newSettings.freelancerName,
+      monthly_remuneration:  Number(newSettings.monthlyRemuneration),
+      working_days_basis:    Number(newSettings.workingDaysBasis),
+      owner_names:           newSettings.ownerNames,
+      project_name:          newSettings.projectName,
+    }, { onConflict: 'id' })
+    if (error) { fetchAll(); throw error }
+  }, [fetchAll])
+
+  // ── Export / Import JSON ────────────────────────────────────────
   const exportData = useCallback(() => {
-    const json = JSON.stringify(state, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `worktracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [state]);
+    const json = JSON.stringify({ settings, entries, payments }, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = Object.assign(document.createElement('a'), { href: url, download: `worktracker-backup-${new Date().toISOString().slice(0, 10)}.json` })
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [settings, entries, payments])
 
-  const importData = useCallback((jsonStr) => {
+  const importData = useCallback(async (jsonStr) => {
     try {
-      const data = JSON.parse(jsonStr);
-      if (!data.settings || !Array.isArray(data.entries)) return false;
-      setState(data);
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
+      const data = JSON.parse(jsonStr)
+      if (!data.settings || !Array.isArray(data.entries)) return false
 
-  const resetData = useCallback(() => {
-    setState(getInitialData());
-  }, []);
+      // Bulk insert entries
+      if (data.entries.length > 0) {
+        const rows = data.entries.map(e => ({
+          id:          e.id,
+          date:        e.date,
+          logged_by:   e.loggedBy,
+          work_type:   e.workType,
+          description: e.description,
+          status:      e.status,
+          confirmed_by: e.confirmedBy ?? null,
+          confirmed_at: e.confirmedAt ?? null,
+          created_at:   e.createdAt,
+        }))
+        const { error } = await supabase.from('entries').upsert(rows, { onConflict: 'id' })
+        if (error) throw error
+      }
+
+      // Upsert payments
+      const paymentRows = Object.entries(data.payments ?? {}).map(([month_key, p]) => ({
+        month_key,
+        amount_paid:  p.amountPaid,
+        payment_date: p.paymentDate || null,
+        notes:        p.notes,
+      }))
+      if (paymentRows.length > 0) {
+        const { error } = await supabase.from('payments').upsert(paymentRows, { onConflict: 'month_key' })
+        if (error) throw error
+      }
+
+      // Upsert settings
+      await updateSettings(data.settings)
+
+      await fetchAll()
+      return true
+    } catch (err) {
+      console.error('Import failed:', err)
+      return false
+    }
+  }, [fetchAll, updateSettings])
+
+  const resetData = useCallback(async () => {
+    await Promise.all([
+      supabase.from('entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabase.from('payments').delete().neq('month_key', ''),
+    ])
+    await fetchAll()
+  }, [fetchAll])
 
   return (
     <AppContext.Provider value={{
-      ...state,
-      addEntry,
-      updateEntry,
-      deleteEntry,
-      confirmEntry,
-      rejectEntry,
-      updatePayment,
-      updateSettings,
-      exportData,
-      importData,
-      resetData,
+      entries, payments, settings, loading, error,
+      addEntry, updateEntry, deleteEntry,
+      confirmEntry, rejectEntry,
+      updatePayment, updateSettings,
+      exportData, importData, resetData,
     }}>
       {children}
     </AppContext.Provider>
-  );
+  )
 }
 
 export const useApp = () => {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
-};
+  const ctx = useContext(AppContext)
+  if (!ctx) throw new Error('useApp must be used within AppProvider')
+  return ctx
+}
