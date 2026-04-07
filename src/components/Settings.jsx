@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { Save, Download, Upload, RotateCcw, Plus, X, IndianRupee } from 'lucide-react';
+import { Save, Download, Upload, RotateCcw, Plus, X, IndianRupee, LogOut, User } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { getDailyRate, formatCurrency } from '../utils/helpers';
 
 function Section({ title, description, children }) {
@@ -17,6 +18,34 @@ function Section({ title, description, children }) {
 
 export default function Settings() {
   const { settings, updateSettings, exportData, importData, resetData } = useApp();
+  const { isAdmin, isFreelancer, username, logout } = useAuth();
+
+  // Freelancer sees only a logout screen
+  if (isFreelancer) return (
+    <div className="px-4 md:px-8 pt-6 pb-24 md:pb-10 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-100">Settings</h1>
+      </div>
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 rounded-full bg-brand-500/15 flex items-center justify-center shrink-0">
+            <User size={22} className="text-brand-400" />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-slate-100">{settings.freelancerName}</p>
+            <p className="text-sm text-slate-500">Freelancer · {username}</p>
+          </div>
+        </div>
+        <button
+          onClick={logout}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-500/10 border border-brand-500/25 text-sm font-semibold text-brand-400 hover:bg-brand-500/20 transition-colors"
+        >
+          <LogOut size={16} />
+          Log Out
+        </button>
+      </div>
+    </div>
+  );
 
   const [form, setForm] = useState({ ...settings, ownerNames: [...settings.ownerNames] });
   const [saved, setSaved] = useState(false);
@@ -286,6 +315,15 @@ export default function Settings() {
             )}
           </div>
         </div>
+
+        {/* Log out — admin */}
+        <button
+          onClick={logout}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-700 text-sm text-slate-400 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/5 transition-colors"
+        >
+          <LogOut size={15} />
+          Log Out
+        </button>
       </div>
     </div>
   );

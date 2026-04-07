@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock, IndianRupee, AlertTriangle, ChevronRight, Plus, TrendingUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import {
   formatCurrency, formatDate, formatDateShort,
   getCurrentMonthKey, getMonthKey, getMonthLabel,
@@ -48,6 +49,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, onClick }) {
 
 export default function Dashboard({ onNavigate }) {
   const { entries, payments, settings } = useApp();
+  const { isAdmin } = useAuth();
 
   const currentMonthKey = getCurrentMonthKey();
   const dailyRate = getDailyRate(settings.monthlyRemuneration, settings.workingDaysBasis);
@@ -105,7 +107,7 @@ export default function Dashboard({ onNavigate }) {
           sub={pendingCount === 1 ? 'entry awaiting' : 'entries awaiting'}
           icon={Clock}
           accent="text-amber-400"
-          onClick={() => onNavigate('confirmations')}
+          onClick={isAdmin ? () => onNavigate('confirmations') : null}
         />
         <StatCard
           label="Total Outstanding"
@@ -160,7 +162,7 @@ export default function Dashboard({ onNavigate }) {
         {/* Right column: pending + quick actions */}
         <div className="space-y-4">
           {/* Pending confirmations call-to-action */}
-          {pendingCount > 0 && (
+          {pendingCount > 0 && isAdmin && (
             <button
               onClick={() => onNavigate('confirmations')}
               className="w-full bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 text-left hover:bg-amber-500/15 transition-colors group"
@@ -177,6 +179,21 @@ export default function Dashboard({ onNavigate }) {
                 </div>
               </div>
             </button>
+          )}
+          {pendingCount > 0 && !isAdmin && (
+            <div className="w-full bg-amber-500/10 border border-amber-500/25 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <Clock size={20} className="text-amber-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-300">
+                    {pendingCount} {pendingCount === 1 ? 'entry' : 'entries'} awaiting approval
+                  </p>
+                  <p className="text-xs text-amber-600 mt-0.5">Owners will confirm these shortly</p>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Month breakdown */}

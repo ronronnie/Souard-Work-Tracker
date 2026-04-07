@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, CheckCircle2, Clock, Wallet, ReceiptText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import {
   formatCurrency, formatDate,
   getCurrentMonthKey, getMonthLabel, getMonthShort,
@@ -27,6 +28,7 @@ const TYPE_PILL = {
 
 export default function MonthlySummary() {
   const { entries, payments, settings, updatePayment } = useApp();
+  const { isAdmin } = useAuth();
 
   const allMonthKeys = getAllMonthKeys(entries);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
@@ -161,8 +163,8 @@ export default function MonthlySummary() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Payment form */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl">
+        {/* Payment form — admin only */}
+        {isAdmin && <div className="bg-slate-900 border border-slate-800 rounded-xl">
           <div className="px-5 py-4 border-b border-slate-800">
             <h2 className="text-sm font-semibold text-slate-200">Record Payment</h2>
             <p className="text-xs text-slate-500 mt-0.5">Update the payment received for {getMonthShort(selectedMonth)}</p>
@@ -212,7 +214,7 @@ export default function MonthlySummary() {
               {saved ? '✓ Saved' : 'Save Payment'}
             </button>
           </form>
-        </div>
+        </div>}
 
         {/* Confirmed entries list */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl">

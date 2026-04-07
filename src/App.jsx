@@ -1,15 +1,21 @@
-import { useState } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import WorkLog from './components/WorkLog';
-import ConfirmationFlow from './components/ConfirmationFlow';
-import MonthlySummary from './components/MonthlySummary';
-import Settings from './components/Settings';
+import { useState } from 'react'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { AppProvider, useApp } from './context/AppContext'
+import LoginPage from './components/LoginPage'
+import Sidebar from './components/Sidebar'
+import Dashboard from './components/Dashboard'
+import WorkLog from './components/WorkLog'
+import ConfirmationFlow from './components/ConfirmationFlow'
+import MonthlySummary from './components/MonthlySummary'
+import Settings from './components/Settings'
 
 function AppShell() {
-  const [view, setView] = useState('dashboard');
-  const { loading, error } = useApp();
+  const [view, setView] = useState('dashboard')
+  const { auth } = useAuth()
+  const { loading, error } = useApp()
+
+  // Gate: not logged in → show login page
+  if (!auth) return <LoginPage />
 
   const views = {
     dashboard:     <Dashboard onNavigate={setView} />,
@@ -17,14 +23,14 @@ function AppShell() {
     confirmations: <ConfirmationFlow />,
     summary:       <MonthlySummary />,
     settings:      <Settings />,
-  };
+  }
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-slate-950 gap-3">
       <div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
       <p className="text-slate-400 text-sm">Connecting to database…</p>
     </div>
-  );
+  )
 
   if (error) return (
     <div className="flex h-screen items-center justify-center bg-slate-950 p-6">
@@ -41,7 +47,7 @@ function AppShell() {
         </p>
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
@@ -52,13 +58,15 @@ function AppShell() {
         </div>
       </main>
     </div>
-  );
+  )
 }
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
-  );
+    <AuthProvider>
+      <AppProvider>
+        <AppShell />
+      </AppProvider>
+    </AuthProvider>
+  )
 }
