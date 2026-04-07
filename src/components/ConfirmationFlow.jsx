@@ -3,15 +3,6 @@ import { CheckCircle2, XCircle, Clock, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/helpers';
 
-const TYPE_PILL = {
-  Photography:  'bg-sky-500/15 text-sky-400',
-  Videography:  'bg-violet-500/15 text-violet-400',
-  Both:         'bg-indigo-500/15 text-indigo-400',
-  Editing:      'bg-teal-500/15 text-teal-400',
-  'Travel Day': 'bg-amber-500/15 text-amber-400',
-  Other:        'bg-slate-500/15 text-slate-400',
-};
-
 function ConfirmDialog({ entry, ownerNames, onConfirm, onCancel }) {
   const [selectedOwner, setSelectedOwner] = useState(ownerNames[0] || 'Ronnie');
   return (
@@ -25,8 +16,8 @@ function ConfirmDialog({ entry, ownerNames, onConfirm, onCancel }) {
             <CheckCircle2 size={20} className="text-emerald-400" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-100">Confirm Entry</h3>
-            <p className="text-xs text-slate-500">{formatDate(entry.date)} · {entry.workType}</p>
+            <h3 className="text-base font-semibold text-slate-100">Approve Entry</h3>
+            <p className="text-xs text-slate-500">{formatDate(entry.date)} · logged by {entry.loggedBy}</p>
           </div>
         </div>
         <p className="text-sm text-slate-400 mb-4 bg-slate-800 rounded-lg px-3 py-2.5 leading-relaxed">
@@ -65,11 +56,11 @@ export default function ConfirmationFlow() {
   const [confirmTarget, setConfirmTarget] = useState(null);
 
   const pending = entries
-    .filter(e => e.status === 'Pending Confirmation')
+    .filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation')
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const recent = entries
-    .filter(e => e.status === 'Confirmed' || e.status === 'Cancelled')
+    .filter(e => e.status === 'Approved' || e.status === 'Rejected' || e.status === 'Confirmed' || e.status === 'Cancelled')
     .sort((a, b) => new Date(b.confirmedAt || b.createdAt) - new Date(a.confirmedAt || a.createdAt))
     .slice(0, 8);
 
@@ -113,9 +104,6 @@ export default function ConfirmationFlow() {
                 <div className="flex-1 min-w-0">
                   {/* Top row */}
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_PILL[entry.workType] || 'bg-slate-700 text-slate-400'}`}>
-                      {entry.workType}
-                    </span>
                     <span className="text-xs text-slate-400 font-medium">{formatDate(entry.date)}</span>
                     <span className="text-xs text-slate-600">Logged by {entry.loggedBy}</span>
                   </div>
@@ -155,24 +143,24 @@ export default function ConfirmationFlow() {
             <div className="divide-y divide-slate-800">
               {recent.map(entry => (
                 <div key={entry.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
-                  {entry.status === 'Confirmed' ? (
+                  {(entry.status === 'Approved' || entry.status === 'Confirmed') ? (
                     <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
                   ) : (
-                    <XCircle size={15} className="text-slate-500 shrink-0" />
+                    <XCircle size={15} className="text-brand-500 shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-300 truncate">{entry.description || '—'}</p>
                     <p className="text-xs text-slate-600">
-                      {formatDate(entry.date)} · {entry.workType}
+                      {formatDate(entry.date)}
                       {entry.confirmedBy ? ` · by ${entry.confirmedBy}` : ''}
                     </p>
                   </div>
                   <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                    entry.status === 'Confirmed'
+                    (entry.status === 'Approved' || entry.status === 'Confirmed')
                       ? 'bg-emerald-500/15 text-emerald-400'
-                      : 'bg-slate-500/15 text-slate-400'
+                      : 'bg-brand-500/15 text-brand-400'
                   }`}>
-                    {entry.status}
+                    {entry.status === 'Confirmed' ? 'Approved' : entry.status === 'Cancelled' ? 'Rejected' : entry.status}
                   </span>
                 </div>
               ))}

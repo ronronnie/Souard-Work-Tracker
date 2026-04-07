@@ -140,10 +140,10 @@ export function AppProvider({ children }) {
     const now = new Date().toISOString()
     // Optimistic update
     setEntries(prev => prev.map(e =>
-      e.id === id ? { ...e, status: 'Confirmed', confirmedBy, confirmedAt: now } : e
+      e.id === id ? { ...e, status: 'Approved', confirmedBy, confirmedAt: now } : e
     ))
     const { error } = await supabase.from('entries').update({
-      status:       'Confirmed',
+      status:       'Approved',
       confirmed_by: confirmedBy,
       confirmed_at: now,
     }).eq('id', id)
@@ -153,10 +153,10 @@ export function AppProvider({ children }) {
   const rejectEntry = useCallback(async (id) => {
     // Optimistic update
     setEntries(prev => prev.map(e =>
-      e.id === id ? { ...e, status: 'Cancelled', confirmedBy: null, confirmedAt: null } : e
+      e.id === id ? { ...e, status: 'Rejected', confirmedBy: null, confirmedAt: null } : e
     ))
     const { error } = await supabase.from('entries').update({
-      status:       'Cancelled',
+      status:       'Rejected',
       confirmed_by: null,
       confirmed_at: null,
     }).eq('id', id)

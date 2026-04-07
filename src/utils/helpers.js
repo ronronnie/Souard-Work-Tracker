@@ -81,8 +81,8 @@ export const getDailyRate = (monthlyRemuneration, workingDaysBasis) =>
 export const calculateMonthStats = (entries, payments, monthKey, settings) => {
   const dailyRate = getDailyRate(settings.monthlyRemuneration, settings.workingDaysBasis);
   const monthEntries = entries.filter(e => getMonthKey(e.date) === monthKey);
-  const confirmedEntries = monthEntries.filter(e => e.status === 'Confirmed');
-  const pendingEntries = monthEntries.filter(e => e.status === 'Pending Confirmation');
+  const confirmedEntries = monthEntries.filter(e => e.status === 'Approved' || e.status === 'Confirmed');
+  const pendingEntries = monthEntries.filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation');
   const daysWorked = confirmedEntries.length;
   const amountDue = daysWorked * dailyRate;
   const payment = payments[monthKey] || {};

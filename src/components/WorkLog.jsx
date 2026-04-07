@@ -1,36 +1,40 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Pencil, Trash2, ChevronDown, Filter, Calendar } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, ChevronDown, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatDate, getCurrentMonthKey, getMonthKey, getAllMonthKeys, getMonthLabel } from '../utils/helpers';
+import { useAuth } from '../context/AuthContext';
+import { formatDate, getMonthKey, getAllMonthKeys, getMonthLabel } from '../utils/helpers';
 
-const WORK_TYPES = ['Photography', 'Videography', 'Both', 'Editing', 'Travel Day', 'Other'];
-const STATUSES   = ['Pending Confirmation', 'Confirmed', 'Cancelled'];
+// New canonical statuses
+const STATUSES = ['Pending', 'Approved', 'Rejected'];
 
 const STATUS_PILL = {
+  'Pending':  'bg-amber-500/15 text-amber-400 border border-amber-500/25',
+  'Approved': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
+  'Rejected': 'bg-brand-500/15 text-brand-400 border border-brand-500/25',
+  // legacy fallbacks (for any old DB rows)
   'Confirmed':            'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
   'Pending Confirmation': 'bg-amber-500/15 text-amber-400 border border-amber-500/25',
-  'Cancelled':            'bg-slate-500/15 text-slate-400 border border-slate-500/25',
+  'Cancelled':            'bg-brand-500/15 text-brand-400 border border-brand-500/25',
 };
-const TYPE_PILL = {
-  Photography:  'bg-sky-500/15 text-sky-400',
-  Videography:  'bg-violet-500/15 text-violet-400',
-  Both:         'bg-indigo-500/15 text-indigo-400',
-  Editing:      'bg-teal-500/15 text-teal-400',
-  'Travel Day': 'bg-amber-500/15 text-amber-400',
-  Other:        'bg-slate-500/15 text-slate-400',
+
+const statusLabel = (s) => {
+  if (s === 'Confirmed' || s === 'Approved') return 'Approved';
+  if (s === 'Cancelled' || s === 'Rejected') return 'Rejected';
+  return 'Pending';
 };
 
 /* ─── Add / Edit Entry Modal ─── */
-function EntryModal({ entry, settings, onSave, onClose }) {
+function EntryModal({ entry, settings, isAdmin, freelancerName, onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
-  const loggedByOptions = ['Freelancer', ...settings.ownerNames];
+
+  const defaultLoggedBy = isAdmin
+    ? (entry?.loggedBy || settings.ownerNames[0] || 'Ronnie')
+    : freelancerName;
 
   const [form, setForm] = useState({
-    date:      entry?.date      || today,
-    loggedBy:  entry?.loggedBy  || 'Freelancer',
-    workType:  entry?.workType  || 'Photography',
+    date:        entry?.date        || today,
+    loggedBy:    defaultLoggedBy,
     description: entry?.description || '',
-    status:    entry?.status    || 'Pending Confirmation',
   });
   const [error, setError] = useState('');
   const firstInputRef = useRef(null);
@@ -46,14 +50,13 @@ function EntryModal({ entry, settings, onSave, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.date) { setError('Please select a date.'); return; }
-    if (!form.description.trim()) { setError('Please add a description.'); return; }
-    onSave(form);
+    if (!form.date)               { setError('Please select a date.');       return; }
+    if (!form.description.trim()) { setError('Please add a description.');   return; }
+    onSave({ ...form, status: 'Pending', workType: 'Other' });
   };
 
   const labelCls = 'block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide';
   const inputCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors';
-  const selectCls = inputCls + ' cursor-pointer';
 
   return (
     <div
@@ -76,7 +79,7 @@ function EntryModal({ entry, settings, onSave, onClose }) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
             {/* Date */}
             <div>
               <label className={labelCls}>Date</label>
@@ -89,34 +92,25 @@ function EntryModal({ entry, settings, onSave, onClose }) {
                 required
               />
             </div>
-            {/* Logged By */}
-            <div>
-              <label className={labelCls}>Logged By</label>
-              <select value={form.loggedBy} onChange={e => set('loggedBy', e.target.value)} className={selectCls}>
-                {loggedByOptions.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-          </div>
 
-          {/* Work Type */}
-          <div>
-            <label className={labelCls}>Work Type</label>
-            <div className="grid grid-cols-3 gap-2">
-              {WORK_TYPES.map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => set('workType', t)}
-                  className={`py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
-                    form.workType === t
-                      ? 'bg-brand-500/20 border-brand-500/50 text-brand-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            {/* Logged By — admin only */}
+            {isAdmin && (
+              <div>
+                <label className={labelCls}>Logged By</label>
+                <div className="relative">
+                  <select
+                    value={form.loggedBy}
+                    onChange={e => set('loggedBy', e.target.value)}
+                    className={inputCls + ' appearance-none cursor-pointer pr-8'}
+                  >
+                    {settings.ownerNames.map(o => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -125,38 +119,15 @@ function EntryModal({ entry, settings, onSave, onClose }) {
             <textarea
               value={form.description}
               onChange={e => set('description', e.target.value)}
-              rows={3}
-              placeholder="e.g. Brand shoot — hero & product detail shots for summer launch"
+              rows={4}
+              placeholder="Describe the work done today…"
               className={inputCls + ' resize-none placeholder:text-slate-600'}
             />
           </div>
 
-          {/* Status */}
-          <div>
-            <label className={labelCls}>Status</label>
-            <div className="grid grid-cols-3 gap-2">
-              {STATUSES.map(s => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => set('status', s)}
-                  className={`py-2 px-1 rounded-lg text-xs font-medium border transition-all leading-tight ${
-                    form.status === s
-                      ? s === 'Confirmed'
-                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                        : s === 'Cancelled'
-                        ? 'bg-slate-500/20 border-slate-500/50 text-slate-300'
-                        : 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
-                  }`}
-                >
-                  {s === 'Pending Confirmation' ? 'Pending' : s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error && <p className="text-xs text-brand-400 bg-brand-500/10 px-3 py-2 rounded-lg">{error}</p>}
+          {error && (
+            <p className="text-xs text-brand-400 bg-brand-500/10 px-3 py-2 rounded-lg">{error}</p>
+          )}
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
@@ -193,20 +164,28 @@ function DeleteDialog({ onConfirm, onCancel }) {
 /* ─── Main WorkLog view ─── */
 export default function WorkLog() {
   const { entries, settings, addEntry, updateEntry, deleteEntry } = useApp();
+  const { isAdmin, isFreelancer } = useAuth();
 
-  const [showModal, setShowModal]   = useState(false);
-  const [editEntry, setEditEntry]   = useState(null);
-  const [deleteId, setDeleteId]     = useState(null);
-  const [filterMonth, setFilterMonth] = useState('all');
+  const freelancerName = settings.freelancerName;
+
+  const [showModal, setShowModal] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
+  const [deleteId, setDeleteId]   = useState(null);
+  const [filterMonth,  setFilterMonth]  = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterType, setFilterType]   = useState('all');
 
   const allMonthKeys = getAllMonthKeys(entries);
 
+  const normalizeStatus = (s) => {
+    if (s === 'Confirmed') return 'Approved';
+    if (s === 'Cancelled') return 'Rejected';
+    if (s === 'Pending Confirmation') return 'Pending';
+    return s;
+  };
+
   const filtered = entries
     .filter(e => filterMonth  === 'all' || getMonthKey(e.date) === filterMonth)
-    .filter(e => filterStatus === 'all' || e.status === filterStatus)
-    .filter(e => filterType   === 'all' || e.workType === filterType)
+    .filter(e => filterStatus === 'all' || normalizeStatus(e.status) === filterStatus)
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const handleSave = (form) => {
@@ -276,17 +255,9 @@ export default function WorkLog() {
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         </div>
 
-        <div className="relative">
-          <select value={filterType} onChange={e => setFilterType(e.target.value)} className={selectCls}>
-            <option value="all">All types</option>
-            {WORK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-        </div>
-
-        {(filterMonth !== 'all' || filterStatus !== 'all' || filterType !== 'all') && (
+        {(filterMonth !== 'all' || filterStatus !== 'all') && (
           <button
-            onClick={() => { setFilterMonth('all'); setFilterStatus('all'); setFilterType('all'); }}
+            onClick={() => { setFilterMonth('all'); setFilterStatus('all'); }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-slate-200 transition-colors"
           >
             <X size={12} /> Clear
@@ -305,14 +276,9 @@ export default function WorkLog() {
         {filtered.map(entry => (
           <div key={entry.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_PILL[entry.workType] || 'bg-slate-700 text-slate-400'}`}>
-                  {entry.workType}
-                </span>
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_PILL[entry.status]}`}>
-                  {entry.status === 'Pending Confirmation' ? 'Pending' : entry.status}
-                </span>
-              </div>
+              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_PILL[entry.status] || STATUS_PILL['Pending']}`}>
+                {statusLabel(entry.status)}
+              </span>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => openEdit(entry)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors">
                   <Pencil size={13} />
@@ -327,7 +293,9 @@ export default function WorkLog() {
               <span>{formatDate(entry.date)}</span>
               <span>·</span>
               <span>{entry.loggedBy}</span>
-              {entry.confirmedBy && <><span>·</span><span className="text-emerald-600">✓ {entry.confirmedBy}</span></>}
+              {entry.confirmedBy && (
+                <><span>·</span><span className="text-emerald-600">✓ {entry.confirmedBy}</span></>
+              )}
             </div>
           </div>
         ))}
@@ -346,7 +314,6 @@ export default function WorkLog() {
               <tr className="border-b border-slate-800 text-xs text-slate-500 uppercase tracking-wider">
                 <th className="text-left px-5 py-3 font-medium">Date</th>
                 <th className="text-left px-4 py-3 font-medium">Logged By</th>
-                <th className="text-left px-4 py-3 font-medium">Type</th>
                 <th className="text-left px-4 py-3 font-medium">Description</th>
                 <th className="text-left px-4 py-3 font-medium">Status</th>
                 <th className="text-right px-5 py-3 font-medium">Actions</th>
@@ -355,22 +322,19 @@ export default function WorkLog() {
             <tbody className="divide-y divide-slate-800">
               {filtered.map(entry => (
                 <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors group">
-                  <td className="px-5 py-3.5 text-slate-300 whitespace-nowrap font-mono text-xs">{formatDate(entry.date)}</td>
-                  <td className="px-4 py-3.5 text-slate-400 whitespace-nowrap">{entry.loggedBy}</td>
-                  <td className="px-4 py-3.5">
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${TYPE_PILL[entry.workType] || 'bg-slate-700 text-slate-400'}`}>
-                      {entry.workType}
-                    </span>
+                  <td className="px-5 py-3.5 text-slate-300 whitespace-nowrap font-mono text-xs">
+                    {formatDate(entry.date)}
                   </td>
-                  <td className="px-4 py-3.5 text-slate-300 max-w-xs">
+                  <td className="px-4 py-3.5 text-slate-400 whitespace-nowrap">{entry.loggedBy}</td>
+                  <td className="px-4 py-3.5 text-slate-300 max-w-sm">
                     <p className="truncate">{entry.description || '—'}</p>
                     {entry.confirmedBy && (
-                      <p className="text-xs text-emerald-600 mt-0.5">Confirmed by {entry.confirmedBy}</p>
+                      <p className="text-xs text-emerald-600 mt-0.5">Approved by {entry.confirmedBy}</p>
                     )}
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className={`text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${STATUS_PILL[entry.status]}`}>
-                      {entry.status === 'Pending Confirmation' ? 'Pending' : entry.status}
+                    <span className={`text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${STATUS_PILL[entry.status] || STATUS_PILL['Pending']}`}>
+                      {statusLabel(entry.status)}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-right">
@@ -395,6 +359,8 @@ export default function WorkLog() {
         <EntryModal
           entry={editEntry}
           settings={settings}
+          isAdmin={isAdmin}
+          freelancerName={freelancerName}
           onSave={handleSave}
           onClose={() => { setShowModal(false); setEditEntry(null); }}
         />

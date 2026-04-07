@@ -17,8 +17,11 @@ const WORK_TYPE_COLORS = {
 };
 
 const STATUS_COLORS = {
+  'Approved':             'bg-emerald-500/15 text-emerald-400',
   'Confirmed':            'bg-emerald-500/15 text-emerald-400',
+  'Pending':              'bg-amber-500/15 text-amber-400',
   'Pending Confirmation': 'bg-amber-500/15 text-amber-400',
+  'Rejected':             'bg-brand-500/15 text-brand-400',
   'Cancelled':            'bg-slate-500/15 text-slate-400',
 };
 
@@ -55,7 +58,7 @@ export default function Dashboard({ onNavigate }) {
   const dailyRate = getDailyRate(settings.monthlyRemuneration, settings.workingDaysBasis);
 
   const currentStats = calculateMonthStats(entries, payments, currentMonthKey, settings);
-  const pendingEntries = entries.filter(e => e.status === 'Pending Confirmation');
+  const pendingEntries = entries.filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation');
   const pendingCount = pendingEntries.length;
 
   // Total outstanding balance across all months
@@ -151,7 +154,7 @@ export default function Dashboard({ onNavigate }) {
                     <p className="text-xs text-slate-600 mt-0.5">{entry.loggedBy}</p>
                   </div>
                   <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${STATUS_COLORS[entry.status]}`}>
-                    {entry.status === 'Pending Confirmation' ? 'Pending' : entry.status}
+                    {entry.status === 'Pending Confirmation' ? 'Pending' : entry.status === 'Confirmed' ? 'Approved' : entry.status === 'Cancelled' ? 'Rejected' : entry.status}
                   </span>
                 </div>
               </div>
