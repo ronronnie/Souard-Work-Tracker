@@ -85,8 +85,11 @@ export const calculateMonthStats = (entries, payments, monthKey, settings) => {
   const pendingEntries = monthEntries.filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation');
   const daysWorked = confirmedEntries.length;
   const amountDue = daysWorked * dailyRate;
-  const payment = payments[monthKey] || {};
-  const amountPaid = Number(payment.amountPaid) || 0;
+  // payments is now an array of records (multiple per month allowed)
+  const monthPayments = Array.isArray(payments)
+    ? payments.filter(p => p.monthKey === monthKey)
+    : [];
+  const amountPaid = monthPayments.reduce((sum, p) => sum + (Number(p.amountPaid) || 0), 0);
   const rawBalance = amountDue - amountPaid;
 
   let paymentStatus = 'Pending';
@@ -103,8 +106,6 @@ export const calculateMonthStats = (entries, payments, monthKey, settings) => {
     balance: Math.max(0, rawBalance),
     overpaid: rawBalance < 0 ? Math.abs(rawBalance) : 0,
     paymentStatus,
-    paymentDate: payment.paymentDate || '',
-    notes: payment.notes || '',
     dailyRate,
     confirmedEntries,
     pendingEntries,

@@ -31,24 +31,21 @@ const toSettings = (r) => r ? {
   projectName:         r.project_name,
 } : defaultSettings
 
-const toPaymentsMap = (rows) => {
-  const map = {}
-  ;(rows ?? []).forEach(r => {
-    map[r.month_key] = {
-      amountPaid:  Number(r.amount_paid) || 0,
-      paymentDate: r.payment_date ?? '',
-      notes:       r.notes ?? '',
-    }
-  })
-  return map
-}
+const toPayment = (r) => ({
+  id:          r.id,
+  monthKey:    r.month_key,
+  amountPaid:  Number(r.amount_paid) || 0,
+  paymentDate: r.payment_date ?? '',
+  notes:       r.notes ?? '',
+  createdAt:   r.created_at,
+})
 
 // ── Context ───────────────────────────────────────────────────────
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [entries,  setEntries]  = useState([])
-  const [payments, setPayments] = useState({})
+  const [payments, setPayments] = useState([])
   const [settings, setSettings] = useState(defaultSettings)
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
@@ -63,14 +60,14 @@ export function AppProvider({ children }) {
         { data: sData, error: sErr },
       ] = await Promise.all([
         supabase.from('entries').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-        supabase.from('payments').select('*'),
+        supabase.from('payments').select('*').order('created_at', { ascending: false }),
         supabase.from('settings').select('*').eq('id', 1).maybeSingle(),
       ])
       if (eErr) throw eErr
       if (pErr) throw pErr
       if (sErr) throw sErr
       setEntries((eData ?? []).map(toEntry))
-      setPayments(toPaymentsMap(pData))
+      setPayments((pData ?? []).map(toPayment))
       setSettings(toSettings(sData))
     } catch (err) {
       setError(err?.message ?? 'Failed to load data from Supabase.')
@@ -92,8 +89,12 @@ export function AppProvider({ children }) {
         ({ new: row }) => setEntries(prev => prev.map(e => e.id === row.id ? toEntry(row) : e)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' },
         ({ old: row }) => setEntries(prev => prev.filter(e => e.id !== row.id)))
-      // payments + settings: just refetch on any change (simpler)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments'  }, fetchAll)
+      // payments: live updates (insert-only model)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' },
+        ({ new: row }) => setPayments(prev => [toPayment(row), ...prev]))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'payments' },
+        ({ old: row }) => setPayments(prev => prev.filter(p => p.id !== row.id)))
+      // settings: refetch on any change
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings'  }, fetchAll)
       .subscribe()
 
@@ -163,16 +164,21 @@ export function AppProvider({ children }) {
     if (error) { fetchAll(); throw error }
   }, [fetchAll])
 
-  const updatePayment = useCallback(async (monthKey, paymentData) => {
-    // Optimistic update
-    setPayments(prev => ({ ...prev, [monthKey]: paymentData }))
-    const { error } = await supabase.from('payments').upsert({
+  const addPayment = useCallback(async (monthKey, paymentData) => {
+    const { error } = await supabase.from('payments').insert({
       month_key:    monthKey,
       amount_paid:  Number(paymentData.amountPaid) || 0,
       payment_date: paymentData.paymentDate || null,
       notes:        paymentData.notes || '',
-      updated_at:   new Date().toISOString(),
-    }, { onConflict: 'month_key' })
+    })
+    if (error) { fetchAll(); throw error }
+    // real-time INSERT event will add it to state automatically
+  }, [fetchAll])
+
+  const deletePayment = useCallback(async (id) => {
+    // Optimistic update
+    setPayments(prev => prev.filter(p => p.id !== id))
+    const { error } = await supabase.from('payments').delete().eq('id', id)
     if (error) { fetchAll(); throw error }
   }, [fetchAll])
 
@@ -222,15 +228,15 @@ export function AppProvider({ children }) {
         if (error) throw error
       }
 
-      // Upsert payments
-      const paymentRows = Object.entries(data.payments ?? {}).map(([month_key, p]) => ({
-        month_key,
+      // Insert payments (array-based model)
+      const paymentRows = (data.payments ?? []).map(p => ({
+        month_key:    p.monthKey,
         amount_paid:  p.amountPaid,
         payment_date: p.paymentDate || null,
-        notes:        p.notes,
+        notes:        p.notes || '',
       }))
       if (paymentRows.length > 0) {
-        const { error } = await supabase.from('payments').upsert(paymentRows, { onConflict: 'month_key' })
+        const { error } = await supabase.from('payments').insert(paymentRows)
         if (error) throw error
       }
 
@@ -248,7 +254,7 @@ export function AppProvider({ children }) {
   const resetData = useCallback(async () => {
     await Promise.all([
       supabase.from('entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('payments').delete().neq('month_key', ''),
+      supabase.from('payments').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     ])
     await fetchAll()
   }, [fetchAll])
@@ -258,7 +264,7 @@ export function AppProvider({ children }) {
       entries, payments, settings, loading, error,
       addEntry, updateEntry, deleteEntry,
       confirmEntry, rejectEntry,
-      updatePayment, updateSettings,
+      addPayment, deletePayment, updateSettings,
       exportData, importData, resetData,
     }}>
       {children}

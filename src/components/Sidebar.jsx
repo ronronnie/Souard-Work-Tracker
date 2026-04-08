@@ -6,14 +6,14 @@ const ADMIN_NAV = [
   { id: 'dashboard',     label: 'Dashboard',      icon: LayoutDashboard },
   { id: 'worklog',       label: 'Work Log',        icon: ClipboardList   },
   { id: 'confirmations', label: 'Confirmations',   icon: CheckSquare     },
-  { id: 'summary',       label: 'Monthly Summary', icon: BarChart3       },
+  { id: 'summary',       label: 'Monthly Pay Summary', icon: BarChart3       },
   { id: 'settings',      label: 'Settings',        icon: Settings        },
 ]
 
 const FREELANCER_NAV = [
   { id: 'dashboard', label: 'Dashboard',      icon: LayoutDashboard },
   { id: 'worklog',   label: 'Work Log',        icon: ClipboardList   },
-  { id: 'summary',   label: 'Monthly Summary', icon: BarChart3       },
+  { id: 'summary',   label: 'Monthly Pay Summary', icon: BarChart3       },
   { id: 'settings',  label: 'Settings',        icon: Settings        },
 ]
 
