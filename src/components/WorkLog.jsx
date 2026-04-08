@@ -283,9 +283,11 @@ export default function WorkLog() {
                 <button onClick={() => openEdit(entry)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors">
                   <Pencil size={13} />
                 </button>
-                <button onClick={() => setDeleteId(entry.id)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors">
-                  <Trash2 size={13} />
-                </button>
+                {isAdmin && (
+                  <button onClick={() => setDeleteId(entry.id)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
             </div>
             <p className="text-sm text-slate-200 mb-1 leading-snug">{entry.description || '—'}</p>
@@ -342,9 +344,11 @@ export default function WorkLog() {
                       <button onClick={() => openEdit(entry)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors">
                         <Pencil size={13} />
                       </button>
-                      <button onClick={() => setDeleteId(entry.id)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors">
-                        <Trash2 size={13} />
-                      </button>
+                      {isAdmin && (
+                        <button onClick={() => setDeleteId(entry.id)} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
