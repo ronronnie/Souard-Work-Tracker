@@ -171,8 +171,8 @@ export function AppProvider({ children }) {
       payment_date: paymentData.paymentDate || null,
       notes:        paymentData.notes || '',
     })
-    if (error) { fetchAll(); throw error }
-    // real-time INSERT event will add it to state automatically
+    if (error) throw error
+    await fetchAll()
   }, [fetchAll])
 
   const deletePayment = useCallback(async (id) => {

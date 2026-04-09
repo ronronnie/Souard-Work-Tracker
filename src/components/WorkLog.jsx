@@ -104,6 +104,7 @@ function EntryModal({ entry, settings, isAdmin, freelancerName, saving, onSave, 
                 ref={firstInputRef}
                 type="date"
                 value={form.date}
+                max={!isAdmin ? today : undefined}
                 onChange={e => set('date', e.target.value)}
                 className={inputCls}
                 required
