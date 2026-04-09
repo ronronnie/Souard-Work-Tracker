@@ -21,7 +21,7 @@ export default function Sidebar({ currentView, onNavigate }) {
   const { entries, settings } = useApp()
   const { isAdmin, isFreelancer, username, logout } = useAuth()
 
-  const pendingCount = entries.filter(e => e.status === 'Pending Confirmation').length
+  const pendingCount = entries.filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation').length
   const NAV = isAdmin ? ADMIN_NAV : FREELANCER_NAV
 
   // Bottom user info

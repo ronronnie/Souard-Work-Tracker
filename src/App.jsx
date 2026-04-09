@@ -52,7 +52,7 @@ function AppShell() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
       <Sidebar currentView={view} onNavigate={setView} />
-      <main className="flex-1 overflow-y-auto min-w-0">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
         <div className="animate-fade-in">
           {views[view] || views.dashboard}
         </div>

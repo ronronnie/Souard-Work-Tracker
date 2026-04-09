@@ -54,6 +54,13 @@ function ConfirmDialog({ entry, ownerNames, onConfirm, onCancel }) {
 export default function ConfirmationFlow() {
   const { entries, settings, confirmEntry, rejectEntry } = useApp();
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  const toggleExpand = (id) => setExpandedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   const pending = entries
     .filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation')
@@ -108,7 +115,7 @@ export default function ConfirmationFlow() {
                     <span className="text-xs text-slate-600">Logged by {entry.loggedBy}</span>
                   </div>
                   {/* Description */}
-                  <p className="text-sm text-slate-200 leading-snug mb-3">{entry.description || '—'}</p>
+                  <p className="text-sm text-slate-200 leading-snug mb-3 break-words overflow-hidden">{entry.description || '—'}</p>
                   {/* Action buttons */}
                   <div className="flex gap-2">
                     <button
@@ -141,29 +148,45 @@ export default function ConfirmationFlow() {
           </h2>
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <div className="divide-y divide-slate-800">
-              {recent.map(entry => (
-                <div key={entry.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
-                  {(entry.status === 'Approved' || entry.status === 'Confirmed') ? (
-                    <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-                  ) : (
-                    <XCircle size={15} className="text-brand-500 shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-300 truncate">{entry.description || '—'}</p>
-                    <p className="text-xs text-slate-600">
-                      {formatDate(entry.date)}
-                      {entry.confirmedBy ? ` · by ${entry.confirmedBy}` : ''}
-                    </p>
+              {recent.map(entry => {
+                const isExpanded = expandedIds.has(entry.id);
+                const isLong = (entry.description || '').length > 80;
+                return (
+                  <div key={entry.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
+                    <div className="mt-0.5 shrink-0">
+                      {(entry.status === 'Approved' || entry.status === 'Confirmed') ? (
+                        <CheckCircle2 size={15} className="text-emerald-500" />
+                      ) : (
+                        <XCircle size={15} className="text-brand-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm text-slate-300 break-words overflow-hidden ${!isExpanded && isLong ? 'line-clamp-2' : ''}`}>
+                        {entry.description || '—'}
+                      </p>
+                      {isLong && (
+                        <button
+                          onClick={() => toggleExpand(entry.id)}
+                          className="text-xs text-slate-500 hover:text-brand-400 transition-colors mt-0.5"
+                        >
+                          {isExpanded ? 'Show less' : 'Read more'}
+                        </button>
+                      )}
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        {formatDate(entry.date)}
+                        {entry.confirmedBy ? ` · by ${entry.confirmedBy}` : ''}
+                      </p>
+                    </div>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${
+                      (entry.status === 'Approved' || entry.status === 'Confirmed')
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-brand-500/15 text-brand-400'
+                    }`}>
+                      {entry.status === 'Confirmed' ? 'Approved' : entry.status === 'Cancelled' ? 'Rejected' : entry.status}
+                    </span>
                   </div>
-                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                    (entry.status === 'Approved' || entry.status === 'Confirmed')
-                      ? 'bg-emerald-500/15 text-emerald-400'
-                      : 'bg-brand-500/15 text-brand-400'
-                  }`}>
-                    {entry.status === 'Confirmed' ? 'Approved' : entry.status === 'Cancelled' ? 'Rejected' : entry.status}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

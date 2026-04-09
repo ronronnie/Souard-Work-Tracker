@@ -112,8 +112,8 @@ export function AppProvider({ children }) {
       status:      entry.status,
     })
     if (error) throw error
-    // real-time INSERT event will add it to state automatically
-  }, [])
+    await fetchAll()
+  }, [fetchAll])
 
   const updateEntry = useCallback(async (id, updates) => {
     // Optimistic update
