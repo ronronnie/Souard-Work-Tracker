@@ -1,10 +1,10 @@
-import { CheckCircle2, Clock, AlertTriangle, ChevronRight, Plus, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Clock, AlertTriangle, ChevronRight, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  formatCurrency, formatDateShort,
+  formatDateShort,
   getCurrentMonthKey, getMonthLabel,
-  calculateMonthStats, getAllMonthKeys,
+  calculateMonthStats,
 } from '../utils/helpers';
 
 const STATUS_COLORS = {
@@ -50,13 +50,6 @@ export default function Dashboard({ onNavigate }) {
   const pendingEntries = entries.filter(e => e.status === 'Pending' || e.status === 'Pending Confirmation');
   const pendingCount = pendingEntries.length;
 
-  // Total outstanding balance across all months
-  const allMonthKeys = getAllMonthKeys(entries);
-  const totalOutstanding = allMonthKeys.reduce((sum, mk) => {
-    const s = calculateMonthStats(entries, payments, mk, settings);
-    return sum + s.balance;
-  }, 0);
-
   // Recent activity (last 5 entries, all statuses)
   const recent = [...entries]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -76,7 +69,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-2 gap-3 mb-8">
         <StatCard
           label="Days Confirmed"
           value={currentStats.daysWorked}
@@ -92,14 +85,6 @@ export default function Dashboard({ onNavigate }) {
           icon={Clock}
           accent="text-amber-400"
           onClick={isAdmin ? () => onNavigate('confirmations') : null}
-        />
-        <StatCard
-          label="Total Outstanding"
-          value={formatCurrency(totalOutstanding)}
-          sub="across all months"
-          icon={TrendingUp}
-          accent={totalOutstanding > 0 ? 'text-brand-400' : 'text-slate-400'}
-          onClick={() => onNavigate('summary')}
         />
       </div>
 

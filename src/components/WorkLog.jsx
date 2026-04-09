@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Pencil, Trash2, ChevronDown, Calendar } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, X, Pencil, Trash2, ChevronDown, Calendar, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate, getMonthKey, getAllMonthKeys, getMonthLabel } from '../utils/helpers';
@@ -23,8 +23,25 @@ const statusLabel = (s) => {
   return 'Pending';
 };
 
+/* ─── Toast ─── */
+function Toast({ message, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-2xl animate-slide-up">
+      <CheckCircle2 size={17} />
+      <span className="text-sm font-semibold">{message}</span>
+      <button onClick={onClose} className="ml-1 opacity-75 hover:opacity-100">
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
 /* ─── Add / Edit Entry Modal ─── */
-function EntryModal({ entry, settings, isAdmin, freelancerName, onSave, onClose }) {
+function EntryModal({ entry, settings, isAdmin, freelancerName, saving, onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10);
 
   const defaultLoggedBy = isAdmin
@@ -134,9 +151,17 @@ function EntryModal({ entry, settings, isAdmin, freelancerName, onSave, onClose 
               className="flex-1 py-2.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors">
               Cancel
             </button>
-            <button type="submit"
-              className="flex-1 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors">
-              {entry ? 'Save Changes' : 'Log Entry'}
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving…
+                </>
+              ) : (entry ? 'Save Changes' : 'Log Entry')}
             </button>
           </div>
         </form>
@@ -171,6 +196,8 @@ export default function WorkLog() {
   const [showModal, setShowModal] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [deleteId, setDeleteId]   = useState(null);
+  const [saving,   setSaving]     = useState(false);
+  const [toast,    setToast]      = useState(false);
   const [filterMonth,  setFilterMonth]  = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -188,15 +215,23 @@ export default function WorkLog() {
     .filter(e => filterStatus === 'all' || normalizeStatus(e.status) === filterStatus)
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const handleSave = (form) => {
-    if (editEntry) {
-      updateEntry(editEntry.id, form);
-    } else {
-      addEntry(form);
+  const handleSave = async (form) => {
+    setSaving(true);
+    try {
+      if (editEntry) {
+        await updateEntry(editEntry.id, form);
+      } else {
+        await addEntry(form);
+      }
+      setShowModal(false);
+      setEditEntry(null);
+      setToast(true);
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
-    setEditEntry(null);
   };
+
+  const closeToast = useCallback(() => setToast(false), []);
 
   const openEdit = (entry) => {
     setEditEntry(entry);
@@ -359,12 +394,14 @@ export default function WorkLog() {
       </div>
 
       {/* Modals */}
+      {toast && <Toast message="Entry logged successfully" onClose={closeToast} />}
       {showModal && (
         <EntryModal
           entry={editEntry}
           settings={settings}
           isAdmin={isAdmin}
           freelancerName={freelancerName}
+          saving={saving}
           onSave={handleSave}
           onClose={() => { setShowModal(false); setEditEntry(null); }}
         />

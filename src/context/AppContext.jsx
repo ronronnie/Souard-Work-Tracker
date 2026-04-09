@@ -183,6 +183,7 @@ export function AppProvider({ children }) {
   }, [fetchAll])
 
   const updateSettings = useCallback(async (newSettings) => {
+    const oldFreelancerName = settings.freelancerName
     // Optimistic update
     setSettings(s => ({ ...s, ...newSettings }))
     const { error } = await supabase.from('settings').upsert({
@@ -194,7 +195,16 @@ export function AppProvider({ children }) {
       project_name:          newSettings.projectName,
     }, { onConflict: 'id' })
     if (error) { fetchAll(); throw error }
-  }, [fetchAll])
+    // If freelancer name changed, cascade to all existing entries
+    if (newSettings.freelancerName && newSettings.freelancerName !== oldFreelancerName) {
+      setEntries(prev => prev.map(e =>
+        e.loggedBy === oldFreelancerName ? { ...e, loggedBy: newSettings.freelancerName } : e
+      ))
+      await supabase.from('entries')
+        .update({ logged_by: newSettings.freelancerName })
+        .eq('logged_by', oldFreelancerName)
+    }
+  }, [fetchAll, settings.freelancerName])
 
   // ── Export / Import JSON ────────────────────────────────────────
   const exportData = useCallback(() => {
