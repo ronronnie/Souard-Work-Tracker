@@ -57,10 +57,16 @@ function EntryModal({ entry, settings, isAdmin, freelancerName, saving, onSave, 
   const firstInputRef = useRef(null);
 
   useEffect(() => {
-    firstInputRef.current?.focus();
+    const timer = setTimeout(() => {
+      const el = firstInputRef.current;
+      if (el) {
+        el.focus();
+        try { el.showPicker?.(); } catch (_) {}
+      }
+    }, 150);
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { clearTimeout(timer); window.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -96,7 +102,7 @@ function EntryModal({ entry, settings, isAdmin, freelancerName, saving, onSave, 
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
+          <div className={isAdmin ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}>
             {/* Date */}
             <div>
               <label className={labelCls}>Date</label>
@@ -261,8 +267,7 @@ export default function WorkLog() {
           className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 text-white rounded-xl text-sm font-semibold hover:bg-brand-600 transition-colors shrink-0"
         >
           <Plus size={16} />
-          <span className="hidden sm:inline">Log Day</span>
-          <span className="sm:hidden">Add</span>
+          Log Day
         </button>
       </div>
 
