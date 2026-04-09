@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Download, ChevronDown, CheckCircle2, X, Trash2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -108,27 +109,19 @@ export default function MonthlySummary() {
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
-  const handleExportCSV = () => {
-    const headers = isAdmin
-      ? ['Month', 'Date of Payment', 'Amount (₹)', 'Notes']
-      : ['Date of Payment', 'Amount (₹)', 'Notes'];
+  const handleExportXLS = () => {
     const rows = paymentRows.map(p => {
-      const base = [
-        p.paymentDate ? formatDate(p.paymentDate) : '—',
-        p.amountPaid > 0 ? p.amountPaid.toFixed(2) : '0',
-        p.notes || '',
-      ];
-      return isAdmin ? [getMonthLabel(p.monthKey), ...base] : base;
+      const base = {
+        'Date of Payment': p.paymentDate ? formatDate(p.paymentDate) : '—',
+        'Amount (₹)':      p.amountPaid > 0 ? p.amountPaid : 0,
+        'Notes':           p.notes || '',
+      };
+      return isAdmin ? { 'Month': getMonthLabel(p.monthKey), ...base } : base;
     });
-    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), {
-      href: url,
-      download: `payment-summary-${new Date().toISOString().slice(0, 10)}.csv`,
-    });
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Payment Summary');
+    XLSX.writeFile(wb, `payment-summary-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const inputCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors';
@@ -157,12 +150,12 @@ export default function MonthlySummary() {
           <p className="text-sm text-slate-500 mt-1">Payment history</p>
         </div>
         <button
-          onClick={handleExportCSV}
+          onClick={handleExportXLS}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700 text-sm text-slate-400 hover:text-slate-200 hover:border-slate-600 hover:bg-slate-800/50 transition-colors shrink-0"
         >
           <Download size={15} />
-          <span className="hidden sm:inline">Export CSV</span>
-          <span className="sm:hidden">CSV</span>
+          <span className="hidden sm:inline">Export Excel</span>
+          <span className="sm:hidden">XLS</span>
         </button>
       </div>
 
